@@ -1,55 +1,38 @@
 package main
 
-type Transaction struct {
-	ID int
-	// Return writeState
-	Operation func(map[string]int) (interface{}, map[string]int)
-	Reads     map[string]interface{}
-}
+import "github.com/denlillemand/go_concurrency_notes/strict_2pl_transactions/transactions"
 
-func State(changeSets chan map[string]int) {
-	State := map[string]int{}
-	for {
-		changeSet := <-changeSets
-		for k, v := range changeSet {
-			State[k] = v
+func createTransactions() []transactions.Transaction {
+	txs := []transactions.Transaction{}
+	keys := []string{"a", "b"}
+	for i := 0; i < 4000; i++ {
+		keyIndex := i % 2
+		key := keys[keyIndex]
+		tReads := map[string]interface{}{
+			key: nil,
 		}
+		tOperation := func(View map[string]int) (interface{}, map[string]int) {
+			changeSet := map[string]int{}
+			changeSet[key] = i
+			result := "Done!"
+			return result, changeSet
+		}
+		t := transactions.NewTransaction(tOperation, tReads)
+		txs = append(txs, *t)
 	}
-}
+	return txs
 
-func TransactionHandler(transaction Transaction) {
-	for {
-
-	}
-}
-
-func TransactionsHandler(pendingTransactions chan Transaction) {
-	transactions := map[int]Transaction{}
-	for {
-		transaction := <-pendingTransactions
-		transaction.ID = len(transactions) + 1
-		transactions[transaction.ID] = transaction
-		// Read the data here mb, then the ID will work i guess
-		// View :=
-		go TransactionHandler(transaction)
-	}
 }
 
 func main() {
-	transactions := make(chan Transaction)
-	t1 := Transaction{}
-	t1.Reads = map[string]interface{}{
-		"r2d2":           nil,
-		"luke skywalker": nil,
+	txs := createTransactions()
+
+	handler := transactions.NewHandler()
+	for _, tx := range txs {
+		handler.Execute(tx)
 	}
-	t1.Operation = func(View map[string]int) (interface{}, map[string]int) {
-		changeSet := map[string]int{}
-		changeSet["r2d2"] = 2
-		result := "Done!"
-		return result, changeSet
-	}
-	go TransactionsHandler(transactions)
-	transactions <- t1
+	handler.StateHandler.GetState <- 1
 	for {
+
 	}
 }
