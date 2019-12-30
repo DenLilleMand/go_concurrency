@@ -7,7 +7,9 @@ type Transaction struct {
 	Reads     map[string]interface{}
 }
 
-func NewTransaction(operation func(map[string]int) (interface{}, map[string]int), reads map[string]interface{}) *Transaction {
+func NewTransaction(
+	operation func(map[string]int) (interface{}, map[string]int),
+	reads map[string]interface{}) *Transaction {
 	return &Transaction{
 		ID:        -1,
 		Operation: operation,
