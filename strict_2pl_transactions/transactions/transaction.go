@@ -9,9 +9,10 @@ type Transaction struct {
 
 func NewTransaction(
 	operation func(map[string]int) (interface{}, map[string]int),
-	reads map[string]interface{}) *Transaction {
+	reads map[string]interface{},
+	ID int) *Transaction {
 	return &Transaction{
-		ID:        -1,
+		ID:        ID,
 		Operation: operation,
 		Reads:     reads,
 	}

@@ -5,7 +5,17 @@ import "fmt"
 type Handler struct {
 	changeSets chan map[string]int
 	readSets   chan readSetHandler
-	GetState   chan int
+	GetState   chan getState
+	stop       chan stopSignal
+}
+
+type stopSignal struct {
+	resp    chan map[string]int
+	success bool
+}
+
+type getState struct {
+	resp chan map[string]int
 }
 
 type ReadSet struct {
@@ -18,21 +28,23 @@ type readSetHandler struct {
 	readSet map[string]interface{}
 }
 
-func New() *Handler {
+func New(initialState map[string]int) *Handler {
 	changeSets := make(chan map[string]int)
 	readSets := make(chan readSetHandler)
-	getState := make(chan int)
+	getState := make(chan getState)
+	stop := make(chan stopSignal)
 	sh := &Handler{
 		changeSets: changeSets,
 		readSets:   readSets,
 		GetState:   getState,
+		stop:       stop,
 	}
-	go sh.loop()
+	go sh.loop(initialState)
 	return sh
 }
 
-func (sh *Handler) loop() {
-	State := map[string]int{}
+func (sh *Handler) loop(initialState map[string]int) {
+	State := initialState
 	GTC := 0
 	totalUpdates := 0
 	for {
@@ -54,10 +66,29 @@ func (sh *Handler) loop() {
 			}
 			read.resp <- data
 			GTC += 1
-		case _ = <-sh.GetState:
-			fmt.Printf("State = %+v\n", State)
+		case getState := <-sh.GetState:
+			getState.resp <- State
+		case stop := <-sh.stop:
+			stop.resp <- State
+			break
 		}
 	}
+}
+
+func (sh *Handler) Get() map[string]int {
+	resp := make(chan map[string]int)
+	getState := getState{resp}
+	sh.GetState <- getState
+	state := <-resp
+	return state
+}
+
+func (sh *Handler) Stop() map[string]int {
+	resp := make(chan map[string]int)
+	stop := stopSignal{resp, true}
+	sh.stop <- stop
+	endState := <-resp
+	return endState
 }
 
 // Need a API for reading the state of state given a readset
